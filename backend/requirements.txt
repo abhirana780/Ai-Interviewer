@@ -2,3 +2,7 @@ flask
 flask-cors
 pyttsx3
 gpt4all
+pdfminer.six
+python-docx
+scikit-learn
+sentence-transformers

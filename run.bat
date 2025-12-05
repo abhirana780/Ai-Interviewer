@@ -9,5 +9,6 @@ if exist venv\Scripts\activate.bat (
   call venv\Scripts\activate.bat
 )
 
-pip install -r backend\requirements.txt
-python backend\app.py
+REM Install requirements only if requirements changed (uncomment if needed)
+REM pip install -r backend\requirements.txt
+python run.py

@@ -21,11 +21,11 @@ class Interviewer:
                 "What are trade-offs between monoliths and microservices?"
             ],
             "MERN": [
-                "Explain how you structure a MERN app with separate client and server. What are key folders?",
-                "How do you manage authentication in MERN? Discuss JWT and refresh tokens.",
-                "Describe state management choices in React for MERN (Context vs Redux).",
+                "Explain how you structure a Mern app with separate client and server. What are key folders?",
+                "How do you manage authentication in Mern? Discuss JWT and refresh tokens.",
+                "Describe state management choices in React for Mern (Context vs Redux).",
                 "How do you design MongoDB schemas for relational-like data in MERN?",
-                "Explain server-side rendering vs CSR in MERN and when to use each."
+                "Explain server-side rendering vs CSR in Mern and when to use each."
             ],
             "Data Science": [
                 "Walk through a typical DS project lifecycle from problem to deployment.",
