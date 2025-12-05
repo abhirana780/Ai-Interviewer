@@ -11,6 +11,7 @@ function addMsg(text, type) {
 document.getElementById("start").onclick = async () => {
     const role = document.getElementById("role").value;
 
+    
     const res = await fetch(BACKEND + "/start", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
