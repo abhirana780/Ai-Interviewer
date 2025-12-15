@@ -12,11 +12,21 @@ const timerEl = document.getElementById("timer");
 let isRecording = false;
 let isUploading = false;
 
-function addMsg(text, type) {
+// Get session ID from URL if present
+function getSessionIdFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('session_id');
+}
+
+function addMsg(text, type, isHtml = false) {
     if (!text) return;
     const div = document.createElement("div");
     div.className = "msg " + type;
-    div.textContent = text;
+    if (isHtml) {
+        div.innerHTML = text;
+    } else {
+        div.textContent = text;
+    }
     chatEl.appendChild(div);
     chatEl.scrollTop = chatEl.scrollHeight;
 }
@@ -58,6 +68,8 @@ let recordingStart = 0;
 
 let recognition = null;
 let transcriptBuffer = "";
+let liveTranscriptDiv = null;
+
 function initRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { return null; }
@@ -67,12 +79,21 @@ function initRecognition() {
     recognition.interimResults = true;
     recognition.onresult = (event) => {
         try {
+            let interim = "";
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const r = event.results[i];
                 if (r.isFinal && r[0] && r[0].transcript) {
                     const t = r[0].transcript.trim();
                     if (t) transcriptBuffer += (transcriptBuffer ? " " : "") + t;
+                } else if (r[0] && r[0].transcript) {
+                    interim += r[0].transcript;
                 }
+            }
+            // Update live display
+            if (liveTranscriptDiv) {
+                const finalText = transcriptBuffer ? transcriptBuffer : "";
+                const interimText = interim ? " <span style='color:#888'>" + interim + "</span>" : "";
+                liveTranscriptDiv.innerHTML = "<strong>Your answer:</strong> " + finalText + interimText;
             }
         } catch (_) {}
     };
@@ -83,10 +104,27 @@ function initRecognition() {
 function startRecognition() {
     if (!recognition) initRecognition();
     transcriptBuffer = "";
+    
+    // Create live transcript display
+    if (!liveTranscriptDiv) {
+        liveTranscriptDiv = document.createElement("div");
+        liveTranscriptDiv.style.cssText = "background:#f0f9ff;border:1px solid #bae6fd;padding:10px;margin:10px 0;border-radius:6px;min-height:40px;font-size:14px;";
+        chatEl.appendChild(liveTranscriptDiv);
+    }
+    liveTranscriptDiv.innerHTML = "<strong>Listening...</strong> <span style='color:#888'>Speak your answer</span>";
+    
     try { recognition && recognition.start(); } catch (_) {}
 }
 function stopRecognition() {
     try { recognition && recognition.stop(); } catch (_) {}
+    
+    // Remove live display after recording
+    if (liveTranscriptDiv && liveTranscriptDiv.parentNode) {
+        setTimeout(() => {
+            liveTranscriptDiv.remove();
+            liveTranscriptDiv = null;
+        }, 500);
+    }
 }
 
 
@@ -198,6 +236,13 @@ async function finalizeUpload() {
     const answerText = ((transcriptBuffer || "").trim()) || "[video_answer]";
     form.append("answer", answerText);
     
+    // Show what user said
+    if (answerText && answerText !== "[video_answer]") {
+        addMsg("You: " + answerText, "me");
+    } else {
+        addMsg("You: [Recording uploaded - processing...]", "me");
+    }
+    
     addMsg("System: Uploading your answer...", "system");
     try {
         const res = await fetch("/answer", { method: "POST", body: form });
@@ -212,7 +257,39 @@ async function finalizeUpload() {
         const feedback = data.feedback || "";
 
         if (score !== null) {
-            addMsg("Score: " + score + (feedback ? " — " + feedback : ""), "bot");
+            // Create beautiful score display
+            const scorePercent = Math.round((score / 5) * 100);
+            let scoreColor = "#e53935"; // red for low scores
+            let scoreBg = "#ffebee";
+            let scoreLabel = "Needs Improvement";
+            
+            if (scorePercent >= 80) {
+                scoreColor = "#1e8e3e";
+                scoreBg = "#e6f4ea";
+                scoreLabel = "Excellent";
+            } else if (scorePercent >= 60) {
+                scoreColor = "#f9ab00";
+                scoreBg = "#fef7e0";
+                scoreLabel = "Good";
+            } else if (scorePercent >= 40) {
+                scoreColor = "#e37400";
+                scoreBg = "#feefc3";
+                scoreLabel = "Fair";
+            }
+            
+            const scoreHtml = `
+                <div style="display:flex;align-items:center;gap:12px;padding:8px 0;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="font-size:32px;font-weight:700;color:${scoreColor};line-height:1;">${score}/5</div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;color:${scoreColor};font-size:14px;">${scoreLabel}</div>
+                            <div style="background:${scoreBg};color:${scoreColor};font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;display:inline-block;margin-top:2px;">${scorePercent}%</div>
+                        </div>
+                    </div>
+                </div>
+                ${feedback ? `<div style="margin-top:8px;padding:8px 12px;background:#f8f9fa;border-left:3px solid ${scoreColor};border-radius:4px;font-size:13px;line-height:1.5;color:#495057;"><strong>Feedback:</strong> ${feedback}</div>` : ""}
+            `;
+            addMsg(scoreHtml, "score", true);
         }
         const nextQ = data.next_question || null;
         if (nextQ) {
@@ -243,6 +320,16 @@ document.addEventListener("DOMContentLoaded", () => {
         botAvatar.src = "/static/media/bot.svg";
         botAvatar.style.display = "block";
     }
+    
+    // Check if session ID is in URL (from registration)
+    const urlSessionId = getSessionIdFromURL();
+    if (urlSessionId) {
+        sessionId = urlSessionId;
+        addMsg("System: Registration successful. Starting interview...", "system");
+        // Auto-start interview
+        setTimeout(() => startBtn.click(), 500);
+    }
+    
     initCamera();
 });
 
@@ -252,10 +339,11 @@ startBtn.onclick = async () => {
 
     const track = trackSel ? trackSel.value : "Software Engineer";
     try {
+        const requestBody = sessionId ? { session_id: sessionId } : { track };
         const res = await fetch("/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ track })
+            body: JSON.stringify(requestBody)
         });
         const data = await res.json();
         sessionId = data.session_id || null;

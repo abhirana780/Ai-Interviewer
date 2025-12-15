@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AI Interviewer - Register</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .form-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #344563;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d0d7e2;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #0b5ed7;
+            box-shadow: 0 0 0 3px rgba(11,94,215,0.1);
+        }
+        .error {
+            color: #e53935;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #0b5ed7;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .submit-btn:hover {
+            background: #0a52c2;
+        }
+        .submit-btn:disabled {
+            background: #94b8e5;
+            cursor: not-allowed;
+        }
+        .header-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #0f1a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h2 class="header-title">AI Interview Registration</h2>
+            <form id="registrationForm">
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" required>
+                    <div class="error" id="nameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="mobile">Mobile Number *</label>
+                    <input type="tel" id="mobile" name="mobile" pattern="[0-9]{10}" placeholder="10-digit number" required>
+                    <div class="error" id="mobileError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address *</label>
+                    <input type="email" id="email" name="email" required>
+                    <div class="error" id="emailError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="qualification">Qualification *</label>
+                    <select id="qualification" name="qualification" required>
+                        <option value="">Select Qualification</option>
+                        <option value="B.Tech/B.E.">B.Tech/B.E.</option>
+                        <option value="M.Tech/M.E.">M.Tech/M.E.</option>
+                        <option value="BCA">BCA</option>
+                        <option value="MCA">MCA</option>
+                        <option value="B.Sc">B.Sc</option>
+                        <option value="M.Sc">M.Sc</option>
+                        <option value="MBA">MBA</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <div class="error" id="qualificationError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="college">College/University Name *</label>
+                    <input type="text" id="college" name="college" required>
+                    <div class="error" id="collegeError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="track">Interview Track *</label>
+                    <select id="track" name="track" required>
+                        <option value="">Select Track</option>
+                        <option value="MERN">MERN Stack</option>
+                        <option value="Data Science">Data Science</option>
+                        <option value="Data Analytics">Data Analytics</option>
+                        <option value="AI/ML">AI/ML</option>
+                        <option value="Python">Python</option>
+                        <option value="Java">Java</option>
+                        <option value="Cloud">Cloud Computing</option>
+                        <option value="Cyber">Cybersecurity</option>
+                        <option value="Software Engineer">Software Engineer</option>
+                    </select>
+                    <div class="error" id="trackError"></div>
+                </div>
+
+                <button type="submit" class="submit-btn">Start Interview</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('registrationForm');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Clear previous errors
+            document.querySelectorAll('.error').forEach(el => el.textContent = '');
+
+            // Get form data
+            const formData = {
+                candidate_name: document.getElementById('name').value.trim(),
+                mobile_number: document.getElementById('mobile').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                qualification: document.getElementById('qualification').value,
+                college_name: document.getElementById('college').value.trim(),
+                track: document.getElementById('track').value
+            };
+
+            // Validation
+            let isValid = true;
+
+            if (!formData.candidate_name) {
+                document.getElementById('nameError').textContent = 'Name is required';
+                isValid = false;
+            }
+
+            if (!/^[0-9]{10}$/.test(formData.mobile_number)) {
+                document.getElementById('mobileError').textContent = 'Please enter a valid 10-digit mobile number';
+                isValid = false;
+            }
+
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+                document.getElementById('emailError').textContent = 'Please enter a valid email address';
+                isValid = false;
+            }
+
+            if (!formData.qualification) {
+                document.getElementById('qualificationError').textContent = 'Please select a qualification';
+                isValid = false;
+            }
+
+            if (!formData.college_name) {
+                document.getElementById('collegeError').textContent = 'College name is required';
+                isValid = false;
+            }
+
+            if (!formData.track) {
+                document.getElementById('trackError').textContent = 'Please select an interview track';
+                isValid = false;
+            }
+
+            if (!isValid) return;
+
+            // Submit to backend
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.session_id) {
+                    // Redirect to interview page with session ID
+                    window.location.href = `/interview?session_id=${data.session_id}`;
+                } else {
+                    alert('Registration failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>
