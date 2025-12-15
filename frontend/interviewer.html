@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Interviewer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+</head>
+<body>
+
+<div class="container">
+    <h2>AI Interviewer</h2>
+
+    <div class="controls">
+        <label for="track">Track:</label>
+        <select id="track">
+            <option>MERN</option>
+            <option>Data Science</option>
+            <option>Data Analytics</option>
+            <option>AI/ML</option>
+            <option>Python</option>
+            <option>Java</option>
+            <option>Cloud</option>
+            <option>Cyber</option>
+        </select>
+
+        <button id="start">Start</button>
+    </div>
+
+
+    <div class="av">
+        <div class="pane">
+            <video id="userCam" autoplay muted playsinline></video>
+            <div class="caption">Your camera</div>
+        </div>
+        <div class="pane">
+            <video id="botVideo" autoplay loop muted playsinline poster="/static/media/bot.svg"></video>
+            <img id="botAvatar" alt="AI Interviewer" src="/static/media/bot.svg" style="display:none"/>
+            <audio id="botVoice"></audio>
+            <div class="caption">AI interviewer</div>
+        </div>
+    </div>
+
+    <div id="chat" class="chat"></div>
+
+    <div class="rec-controls">
+        <button id="record" type="button">Record</button>
+        <button id="stop" type="button">Submit</button>
+        <span id="timer">00:00</span>
+    </div>
+</div>
+
+<script src="/static/js/script.js"></script>
+
+</body>
+</html>
