@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <title>AI Interviewer - Register</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
     <style>
         .form-container {
             max-width: 600px;
@@ -195,7 +196,10 @@
                     body: JSON.stringify(formData)
                 });
 
-                const data = await response.json();
+                if (!response.ok) {
+    throw new Error("Server error");
+}
+const data = await response.json();
 
                 if (data.session_id) {
                     // Redirect to interview page with session ID

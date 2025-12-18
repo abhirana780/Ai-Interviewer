@@ -1,4 +1,4 @@
-const BACKEND = "http://localhost:7860";
+const BACKEND = "https://ai-interviewer-afy2.onrender.com/";
 let sessionId = null;
 
 function addMsg(text, type) {
