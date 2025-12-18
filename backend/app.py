@@ -1,8 +1,19 @@
+import os
+import sys
+
+# Load environment variables if not already loaded
+try:
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    if os.path.exists(env_path):
+        load_dotenv(env_path, override=True)
+except ImportError:
+    pass
+
 from flask import Flask, request, jsonify, send_from_directory, url_for
 from flask_cors import CORS
 import uuid
 import time
-import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -17,7 +28,6 @@ from utils.offer_generator import generate_offer
 from utils.lms import enroll_message
 from utils.labs import pick_lab, grade_lab_code
 from utils.answer_verifier import verify_transcript, verify_session
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "model", "models"))
 DB_PATH = os.path.join(BASE_DIR, "database", "interviews.db")
@@ -53,12 +63,28 @@ def synthesize_tts(text, session_id):
         full_path = os.path.join(media_dir, filename)
         import pyttsx3
         engine = pyttsx3.init()
+        
+        # Set voice to female if possible (based on user preference)
+        voices = engine.getProperty('voices')
+        for voice in voices:
+            # Look for female voices
+            if 'female' in voice.name.lower() or 'zira' in voice.name.lower():
+                engine.setProperty('voice', voice.id)
+                break
+            elif 'woman' in voice.name.lower() or 'girl' in voice.name.lower():
+                engine.setProperty('voice', voice.id)
+                break
+        
+        # Set reasonable speech rate
+        engine.setProperty('rate', 130)
+        engine.setProperty('rate', 130)
+        
         engine.save_to_file(text, full_path)
         engine.runAndWait()
         return f"/static/media/tts/{session_id}/{filename}"
-    except Exception:
+    except Exception as e:
+        print(f"TTS Error: {e}")
         return None
-
     # Root and health endpoints
 @app.route("/", methods=["GET"])
 def index():
@@ -376,8 +402,8 @@ def send_interview_email():
 </head>
 <body>
     <div class="header">
-        <h1>🎓 Interview Results</h1>
-        <p style="margin: 10px 0 0 0; opacity: 0.9;">AI-Powered Technical Interview Assessment</p>
+        <h1>🎓Wipronix Interview Results</h1>
+        <p style="margin: 10px 0 0 0; opacity: 0.9;">AI-Powered Wipronix Technologies Interview Assessment</p>
     </div>
     
     <div class="content">
@@ -430,11 +456,11 @@ def send_interview_email():
         
         <p style="margin-top: 20px;">If you have any questions about your results, please don't hesitate to reach out to our recruitment team.</p>
         
-        <p style="margin-top: 20px; font-weight: bold;">Best regards,<br>The Recruitment Team</p>
+        <p style="margin-top: 20px; font-weight: bold;">Best regards,<br>Wipronix Technologies</p>
     </div>
     
     <div class="footer">
-        <p>© 2025 AI Interview System. All rights reserved.</p>
+        <p>© 2025 Wipronix Interview System. All rights reserved.</p>
         <p>This is an automated email. Please do not reply directly to this message.</p>
     </div>
 </body>

@@ -22,13 +22,13 @@ ROLE_DESCRIPTIONS = {
 
 # Track-specific keyword sets for ATS scoring
 ATS_KEYWORDS = {
-    "General": ["python", "java", "sql", "git", "docker", "api", "testing", "cloud", "linux", "ci/cd", "rest"],
-    "MERN": ["react", "node", "express", "mongodb", "jwt", "redux", "hooks", "typescript", "vite", "next.js", "csr", "ssr"],
-    "Data Science": ["pandas", "numpy", "scikit-learn", "sklearn", "regression", "classification", "feature", "model", "pipeline", "cross-validation", "metrics"],
-    "Data Analytics": ["excel", "tableau", "power bi", "dashboard", "kpi", "sql", "etl", "report", "visualization", "pivot"],
-    "AI/ML": ["deep learning", "neural", "pytorch", "tensorflow", "transformer", "fine-tuning", "gpu", "inference", "embedding", "mlops"],
-    "Python": ["python", "flask", "django", "asyncio", "pip", "venv", "pytest", "package", "dataclass", "typing"],
-    "Java": ["java", "spring", "spring boot", "jpa", "hibernate", "maven", "gradle", "rest", "jvm", "concurrency"],
-    "Cloud": ["aws", "azure", "gcp", "s3", "ec2", "iam", "kubernetes", "terraform", "vpc", "autoscaling"],
-    "Cyber": ["owasp", "xss", "csrf", "encryption", "mfa", "threat", "mitigation", "vulnerability", "zero trust", "pentest"]
+    "General": ["python", "java", "sql", "git", "docker", "api", "testing", "cloud", "linux", "ci/cd", "rest", "microservices", "devops", "agile", "scrum", "json", "xml", "http", "https", "tcp/ip", "oop", "design patterns"],
+    "MERN": ["react", "node", "express", "mongodb", "jwt", "redux", "hooks", "typescript", "vite", "next.js", "csr", "ssr", "component", "props", "state", "lifecycle", "middleware", "routing", "axios", "cors", "npm", "webpack"],
+    "Data Science": ["pandas", "numpy", "scikit-learn", "sklearn", "regression", "classification", "feature", "model", "pipeline", "cross-validation", "metrics", "clustering", "nlp", "deep learning", "neural networks", "supervised", "unsupervised", "matplotlib", "seaborn", "jupyter"],
+    "Data Analytics": ["excel", "tableau", "power bi", "dashboard", "kpi", "sql", "etl", "report", "visualization", "pivot", "looker", "qlik", "sap", "google analytics", "segmentation", "forecasting", "trend analysis"],
+    "AI/ML": ["deep learning", "neural", "pytorch", "tensorflow", "transformer", "fine-tuning", "gpu", "inference", "embedding", "mlops", "computer vision", "nlp", "reinforcement learning", "gan", "cnn", "rnn", "bert", "llm", "openai", "huggingface"],
+    "Python": ["python", "flask", "django", "asyncio", "pip", "venv", "pytest", "package", "dataclass", "typing", "decorator", "generator", "context manager", "virtualenv", "sqlalchemy", "requests", "beautifulsoup"],
+    "Java": ["java", "spring", "spring boot", "jpa", "hibernate", "maven", "gradle", "rest", "jvm", "concurrency", "multithreading", "collections", "streams", "lambda", "optional", "annotations", "servlets"],
+    "Cloud": ["aws", "azure", "gcp", "s3", "ec2", "iam", "kubernetes", "terraform", "vpc", "autoscaling", "lambda", "ecs", "eks", "cloudformation", "arm", "load balancer", "cdn", "route53"],
+    "Cyber": ["owasp", "xss", "csrf", "encryption", "mfa", "threat", "mitigation", "vulnerability", "zero trust", "pentest", "firewall", "ids", "ips", "siem", "soc", "phishing", "malware", "ransomware", "iso27001"]
 }

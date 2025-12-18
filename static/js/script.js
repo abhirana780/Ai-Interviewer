@@ -2,15 +2,18 @@ let sessionId = null;
 const chatEl = document.getElementById("chat");
 const startBtn = document.getElementById("start");
 const trackSel = document.getElementById("track");
-const botVoice = document.getElementById("botVoice");
-const botVideo = document.getElementById("botVideo");
-const botAvatar = document.getElementById("botAvatar");
 const userCam = document.getElementById("userCam");
 const recordBtn = document.getElementById("record");
 const stopBtn = document.getElementById("stop");
 const timerEl = document.getElementById("timer");
-let isRecording = false;
+const botVoice = document.getElementById("botVoice");let isRecording = false;
 let isUploading = false;
+
+// Tab switching detection variables
+let tabSwitchCount = 0;
+
+// Make sessionId globally accessible
+window.sessionId = sessionId;
 
 // Get session ID from URL if present
 function getSessionIdFromURL() {
@@ -35,30 +38,7 @@ function setDisabled(el, disabled) {
     if (el) el.disabled = !!disabled;
 }
 
-async function playBotAssets(ttsUrl, videoUrl, imageUrl) {
-    const fallback = "/static/media/bot.svg";
-    const imgUrl = imageUrl || fallback;
-    if (videoUrl) {
-        botVideo.style.display = "block";
-        if (botAvatar) botAvatar.style.display = "none";
-        botVideo.poster = "";
-        botVideo.src = videoUrl;
-        try { await botVideo.play(); } catch (_) {}
-    } else {
-        try { botVideo.pause && botVideo.pause(); } catch (_) {}
-        botVideo.src = "";
-        try { botVideo.load(); } catch (_) {}
-        botVideo.style.display = "none";
-        if (botAvatar) {
-            botAvatar.src = imgUrl;
-            botAvatar.style.display = "block";
-        }
-    }
-    if (ttsUrl) {
-        botVoice.src = ttsUrl;
-        try { await botVoice.play(); } catch (_) {}
-    }
-}
+// Bot assets function removed as bot view was simplified
 
 let mediaStream = null;
 let mediaRecorder = null;
@@ -136,6 +116,8 @@ async function initCamera() {
         addMsg("System: Camera/mic unavailable.", "system");
     }
 }
+
+// Proctoring functionality completely removed
 
 function formatTime(ms) {
     const total = Math.floor(ms / 1000);
@@ -294,11 +276,28 @@ async function finalizeUpload() {
         const nextQ = data.next_question || null;
         if (nextQ) {
             addMsg("Interviewer: " + nextQ, "bot");
-            playBotAssets(data.tts_url, data.bot_video_url, data.bot_image_url);
+            // Play TTS audio for next question if available
+            if (data.tts_url && botVoice) {
+                botVoice.src = data.tts_url;
+                // Handle autoplay policies by attempting to play after user interaction
+                const playPromise = botVoice.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {
+                        console.log("Audio play failed:", e);
+                        // Try to play after a small delay
+                        setTimeout(() => {
+                            botVoice.play().catch(e2 => {
+                                console.log("Audio play failed on retry:", e2);
+                                // Show a message to the user that audio is not available
+                                addMsg("System: Audio playback failed. Please check your browser settings or click anywhere to enable audio.", "system");
+                            });
+                        }, 100);
+                    });
+                }
+            }
             setDisabled(recordBtn, false);
         } else {
             addMsg("System: Interview complete.", "system");
-            playBotAssets(null, data.bot_video_url, data.bot_image_url);
             setDisabled(recordBtn, true);
         }
     } catch (e) {
@@ -313,33 +312,43 @@ document.addEventListener("DOMContentLoaded", () => {
     addMsg("System: Connected to interviewer.", "system");
     setDisabled(recordBtn, true);
     setDisabled(stopBtn, true);
-    botVideo.src = "";
-    try { botVideo.load(); } catch (_) {}
-    botVideo.style.display = "none";
-    if (botAvatar) {
-        botAvatar.src = "/static/media/bot.svg";
-        botAvatar.style.display = "block";
-    }
+    
+    // Add user interaction listeners to handle autoplay policies
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('touchstart', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
     
     // Check if session ID is in URL (from registration)
     const urlSessionId = getSessionIdFromURL();
     if (urlSessionId) {
         sessionId = urlSessionId;
+        window.sessionId = sessionId; // Update global reference
         addMsg("System: Registration successful. Starting interview...", "system");
         // Auto-start interview
-        setTimeout(() => startBtn.click(), 500);
+        setTimeout(() => {
+            if (startBtn) {
+                startBtn.click();
+            } else {
+                // Fallback: directly call the start function
+                startInterview();
+            }
+        }, 500);
     }
     
     initCamera();
+    
+    // Setup tab switching detection
+    setupTabSwitchDetection();
 });
-
-startBtn.onclick = async () => {
+// Function to start the interview (used both by button click and direct call)
+async function startInterview() {
     setDisabled(startBtn, true);
     setDisabled(recordBtn, true);
 
-    const track = trackSel ? trackSel.value : "Software Engineer";
+    // For registered users coming from registration, we already have a session ID
+    // and the track is stored in the database, so we don't need to send track info
     try {
-        const requestBody = sessionId ? { session_id: sessionId } : { track };
+        const requestBody = sessionId ? { session_id: sessionId } : {};
         const res = await fetch("/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -347,6 +356,7 @@ startBtn.onclick = async () => {
         });
         const data = await res.json();
         sessionId = data.session_id || null;
+        window.sessionId = sessionId; // Update global reference
 
         if (!sessionId) {
             addMsg("System: Failed to start session.", "system");
@@ -354,24 +364,44 @@ startBtn.onclick = async () => {
             return;
         }
 
-        if (data.bot_video_url || data.tts_url || data.bot_image_url) {
-            playBotAssets(data.tts_url, data.bot_video_url, data.bot_image_url);
-        }
+        // Camera and interview started
+
+        // Bot assets playback removed as bot view was simplified
 
         const q = data.question || "";
         if (q) {
             addMsg("Interviewer: " + q, "bot");
+            // Play TTS audio if available
+            if (data.tts_url && botVoice) {
+                botVoice.src = data.tts_url;
+                // Handle autoplay policies by attempting to play after user interaction
+                const playPromise = botVoice.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => {
+                        console.log("Audio play failed:", e);
+                        // Try to play after a small delay
+                        setTimeout(() => {
+                            botVoice.play().catch(e2 => {
+                                console.log("Audio play failed on retry:", e2);
+                                // Show a message to the user that audio is not available
+                                addMsg("System: Audio playback failed. Please check your browser settings or click anywhere to enable audio.", "system");
+                            });
+                        }, 100);
+                    });
+                }
+            }
             setDisabled(recordBtn, false);
         } else {
             addMsg("System: No question received.", "system");
             setDisabled(recordBtn, false);
-        }
-    } catch (e) {
+        }    } catch (e) {
         addMsg("System: Error starting interview.", "system");
         setDisabled(startBtn, false);
     }
+}
+startBtn.onclick = async () => {
+    startInterview();
 };
-
 recordBtn.onclick = () => {
     startRecording();
 };
@@ -380,3 +410,111 @@ stopBtn.onclick = () => {
     stopRecording();
     setDisabled(recordBtn, true);
 };
+
+// Tab switching detection functions
+function setupTabSwitchDetection() {
+    // Listen for visibility changes (tab switching)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+}
+
+function handleVisibilityChange() {
+    // Only trigger warning if interview has started
+    if (sessionId) {
+        if (document.hidden) {
+            tabSwitchCount++;
+            showTabSwitchWarning();
+        }
+    }
+}
+
+function showTabSwitchWarning() {
+    // Create warning overlay
+    const warningOverlay = document.createElement('div');
+    warningOverlay.id = 'tab-switch-warning';
+    warningOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 0, 0, 0.9);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+        text-align: center;
+    `;
+    
+    warningOverlay.innerHTML = `
+        <h1 style="font-size: 48px; margin-bottom: 20px;">⚠️ WARNING</h1>
+        <h2 style="font-size: 32px; margin-bottom: 20px;">Tab Switching Detected!</h2>
+        <p style="font-size: 24px; margin-bottom: 30px;">Please return to the interview tab immediately.</p>
+        <p style="font-size: 18px;">This incident will be recorded.</p>
+    `;
+    
+    document.body.appendChild(warningOverlay);
+    
+    // Play warning sound
+    playWarningSound();
+    
+    // Remove warning after 3 seconds
+    setTimeout(() => {
+        if (warningOverlay.parentNode) {
+            warningOverlay.parentNode.removeChild(warningOverlay);
+        }
+    }, 3000);
+}
+
+function playWarningSound() {
+    try {
+        // Try Web Audio API first
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 800;
+        gainNode.gain.value = 0.3;
+        
+        oscillator.start();
+        setTimeout(() => {
+            oscillator.stop();
+        }, 1000);
+    } catch (e) {
+        // Fallback: try to play a beep sound
+        console.warn('Web Audio API not available for warning sound');
+        try {
+            const audio = new Audio();
+            audio.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFd2xqZ2VjXl1bWVhXVlVUU1JRUFFQUVJTVFVWV1hZWltcXF5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/w==';
+            audio.play();
+        } catch (e2) {
+            console.warn('Fallback audio also failed');
+        }
+    }
+}
+
+// Variable to track if user has interacted with the page
+let userInteracted = false;
+
+// Function to handle user interaction for audio autoplay
+function handleUserInteraction() {
+    if (!userInteracted) {
+        userInteracted = true;
+        // Try to resume audio context if needed
+        if (botVoice) {
+            botVoice.muted = false;
+        }
+        // Remove event listeners after first interaction
+        document.removeEventListener('click', handleUserInteraction);
+        document.removeEventListener('touchstart', handleUserInteraction);
+        document.removeEventListener('keydown', handleUserInteraction);
+    }
+}
+
+// All proctoring functionality has been completely removed to eliminate false positives
