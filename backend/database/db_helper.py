@@ -317,3 +317,32 @@ def update_answer_text_by_media(db_path, session_id, media_path, text):
     )
     conn.commit()
     conn.close()
+
+def update_answer_score(db_path, session_id, answer_index, score, feedback):
+    """Update the score and feedback for a specific answer by index"""
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    # Get all answers for this session ordered by creation time
+    c.execute("SELECT id FROM answers WHERE session_id=? ORDER BY created_at ASC", (session_id,))
+    rows = c.fetchall()
+    
+    # Update the answer at the specified index (0-based)
+    if answer_index < len(rows):
+        answer_id = rows[answer_index][0]
+        c.execute(
+            "UPDATE answers SET score=?, feedback=? WHERE id=?",
+            (int(score) if score is not None else None, feedback or "", answer_id)
+        )
+        conn.commit()
+    conn.close()
+
+def update_final_score(db_path, session_id, final_score):
+    """Update the final overall score for a session"""
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute(
+        "UPDATE sessions SET final_score=? WHERE id=?",
+        (float(final_score) if final_score is not None else None, session_id)
+    )
+    conn.commit()
+    conn.close()

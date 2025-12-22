@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tab Switching Test</title>
+</head>
+<body>
+    <h1>Tab Switching Cancellation Test</h1>
+    <p>This is a test page to simulate the tab switching detection.</p>
+    <p>Open this page in a browser and switch tabs 3 times to test the cancellation feature.</p>
+    
+    <script>
+        // Simulate the tab switching counter
+        let tabSwitchCount = 0;
+        let sessionId = "test_session";
+        
+        // Simple function to disable buttons (simulation)
+        function setDisabled(element, disabled) {
+            if (element) {
+                element.disabled = disabled;
+            }
+        }
+        
+        // Simple function to add messages (simulation)
+        function addMsg(message, className) {
+            console.log(`[${className}] ${message}`);
+        }
+        
+        // Get button elements (simulation)
+        const startBtn = { disabled: false };
+        const recordBtn = { disabled: false };
+        const stopBtn = { disabled: false };
+        
+        // Include the functions we added
+        function cancelTestForTabSwitching() {
+            // Create cancellation overlay
+            const cancelOverlay = document.createElement('div');
+            cancelOverlay.id = 'test-cancelled';
+            cancelOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.95);
+                color: white;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                font-family: Arial, sans-serif;
+                text-align: center;
+            `;
+            
+            cancelOverlay.innerHTML = `
+                <h1 style="font-size: 48px; margin-bottom: 20px; color: #ff4444;">❌ TEST TERMINATED</h1>
+                <h2 style="font-size: 32px; margin-bottom: 20px;">Multiple Tab Switching Violations Detected</h2>
+                <p style="font-size: 24px; margin-bottom: 30px; max-width: 800px; line-height: 1.5;">Your interview has been automatically cancelled due to repeated tab switching violations. This incident will be recorded and reported to the administration.</p>
+                <p style="font-size: 18px; color: #ffaaaa;">Please contact the recruitment team if you believe this was an error.</p>
+            `;
+            
+            document.body.appendChild(cancelOverlay);
+            
+            // Disable all controls
+            setDisabled(startBtn, true);
+            setDisabled(recordBtn, true);
+            setDisabled(stopBtn, true);
+            
+            // Add message to chat
+            addMsg("System: ⚠️ Interview terminated due to multiple tab switching violations.", "system");
+            
+            // Play cancellation sound
+            playCancellationSound();
+            
+            // Note: We don't remove this overlay as it's a permanent cancellation message
+            console.log("Test cancelled due to 3 tab switches");
+        }
+        
+        function playCancellationSound() {
+            console.log("Playing cancellation sound...");
+        }
+        
+        // Simulate tab switching
+        function simulateTabSwitch() {
+            if (sessionId) {
+                tabSwitchCount++;
+                console.log(`Tab switch detected. Count: ${tabSwitchCount}`);
+                
+                // Cancel test if 3 warnings have been issued
+                if (tabSwitchCount >= 3) {
+                    cancelTestForTabSwitching();
+                    return;
+                }
+                
+                console.log("Showing tab switch warning...");
+            }
+        }
+        
+        // Add buttons to simulate tab switching
+        document.body.innerHTML += `
+            <div style="margin-top: 20px;">
+                <button onclick="simulateTabSwitch()">Simulate Tab Switch (${tabSwitchCount})</button>
+                <button onclick="tabSwitchCount=0; console.log('Reset counter')">Reset Counter</button>
+            </div>
+        `;
+    </script>
+</body>
+</html>

@@ -2,8 +2,7 @@
 <html>
 <head>
     <title>AI Interviewer</title>
-<<<<<<< HEAD
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <style>
         /* Fullscreen styles */
         :-webkit-full-screen .container { width: 100%; height: 100%; }
@@ -24,10 +23,6 @@
             z-index: 100;
         }
     </style>
-=======
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
->>>>>>> 839808799895dcf22ea56c55ab72cb8e542adf56
 </head>
 <body>
 
@@ -43,8 +38,8 @@
             <div class="caption">Your camera</div>
         </div>
         <div class="pane">
-            <video id="botVideo" autoplay loop muted playsinline poster="/static/media/bot.svg"></video>
-            <img id="botAvatar" alt="AI Interviewer" src="/static/media/bot.svg" style="display:none"/>
+            <video id="botVideo" autoplay loop muted playsinline poster="/media/bot.svg"></video>
+            <img id="botAvatar" alt="AI Interviewer" src="/media/bot.svg" style="display:none"/>
             <audio id="botVoice" autoplay muted playsinline></audio>            <div class="caption">AI interviewer</div>
         </div>
     </div>
@@ -57,7 +52,7 @@
         <button id="stop" type="button">Submit</button>
         <span id="timer">00:00</span>
     </div>
-</div><script src="/static/js/script.js"></script>
+</div><script src="/js/script.js"></script>
 
 </body>
 </html>

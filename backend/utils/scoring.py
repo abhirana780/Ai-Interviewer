@@ -2,6 +2,13 @@ import re
 from typing import Tuple, List
 import numpy as np
 
+# Import our HuggingFaceAnswerMatcher
+try:
+    from utils.huggingface_matcher import HuggingFaceAnswerMatcher
+    HF_MATCHER_AVAILABLE = True
+except ImportError:
+    HF_MATCHER_AVAILABLE = False
+
 # Import track-specific keywords from prompts
 try:
     from utils.prompts import ATS_KEYWORDS
@@ -18,6 +25,9 @@ except:
 # Global model instance (lazy loading)
 _SEMANTIC_MODEL = None
 
+# Global HuggingFaceAnswerMatcher instance (lazy loading)
+_HF_MATCHER = None
+
 
 def get_semantic_model():
     """Lazy load the semantic similarity model."""
@@ -29,12 +39,35 @@ def get_semantic_model():
             pass
     return _SEMANTIC_MODEL
 
+def get_hf_matcher():
+    """Lazy load the HuggingFaceAnswerMatcher."""
+    global _HF_MATCHER
+    if HF_MATCHER_AVAILABLE and _HF_MATCHER is None:
+        try:
+            _HF_MATCHER = HuggingFaceAnswerMatcher()
+        except Exception:
+            pass
+    return _HF_MATCHER
+
 
 def compute_semantic_similarity(question: str, answer: str) -> float:
     """Compute semantic similarity between question and answer using AI model."""
     if not question or not answer:
         return 0.0
     
+    # Try to use HuggingFaceAnswerMatcher first
+    hf_matcher = get_hf_matcher()
+    if hf_matcher and hf_matcher.model:
+        try:
+            # Generate expected answer for the question
+            expected_answer = hf_matcher.generate_expected_answer(question)
+            # Compute similarity between candidate answer and expected answer
+            similarity = hf_matcher.compute_similarity(answer, expected_answer)
+            return max(0.0, min(1.0, similarity))
+        except Exception:
+            pass
+    
+    # Fallback to original sentence transformer approach
     model = get_semantic_model()
     if model is None:
         # Fallback to keyword overlap if model not available
@@ -73,8 +106,8 @@ def preprocess_text(text: str) -> str:
     return text.strip()
 
 
-def analyze_answer_quality(text: str, question: str = "", track: str = "General", expected_keywords: list = None) -> dict:
-    """Analyze answer quality with multiple metrics including AI-based semantic similarity."""
+def analyze_answer_quality(text: str, question: str = "", track: str = "General", expected_keywords: list = None, expected_answer: str = None) -> dict:
+    """Analyze answer quality with focus on exact keyword matching with expected answers."""
     if not text:
         return {
             "word_count": 0,
@@ -83,6 +116,7 @@ def analyze_answer_quality(text: str, question: str = "", track: str = "General"
             "uncertainty_level": 0,
             "refusal_phrases": 0,
             "keyword_matches": [],
+            "expected_matches": [],
             "semantic_similarity": 0.0
         }
     
@@ -105,35 +139,23 @@ def analyze_answer_quality(text: str, question: str = "", track: str = "General"
     ]
     refusal_count = sum(1 for phrase in refusal_phrases if phrase in text_lower)
     
-    # Track-specific keyword matching
-    track_keywords = ATS_KEYWORDS.get(track, ATS_KEYWORDS.get("General", []))
+    # Extract keywords from expected answer for matching
+    expected_answer_keywords = []
+    if expected_answer:
+        # Extract significant words (exclude common stop words)
+        stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "was", "were", "be", "been", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these", "those", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them"}
+        expected_words = re.findall(r'\b[a-zA-Z]{3,}\b', expected_answer.lower())
+        expected_answer_keywords = [word for word in expected_words if word not in stop_words]
     
     # Expected answer keywords matching (higher priority)
-    expected_keywords = expected_keywords or []
     expected_matches = []
-    for kw in expected_keywords:
+    for kw in expected_answer_keywords:
         # Try exact match first
         if re.search(r'\b' + re.escape(kw.lower()) + r'\b', text_lower):
             expected_matches.append(kw)
-        # Try fuzzy matching for flexibility (handles word variations like "scalability" vs "scalable")
-        else:
-            kw_clean = re.sub(r'[^\w\s]', '', kw.lower())  # Remove punctuation
-            text_clean = re.sub(r'[^\w\s]', '', text_lower)  # Remove punctuation
-            
-            # For single words, check if they're related
-            if ' ' not in kw_clean:
-                # Check if keyword is contained in any word in text or vice versa
-                text_words = text_clean.split()
-                for word in text_words:
-                    if kw_clean in word or word in kw_clean:
-                        expected_matches.append(kw)
-                        break
-            # For multi-word keywords, check if all parts are present
-            else:
-                kw_parts = kw_clean.split()
-                if all(any(part in word for word in text_clean.split()) for part in kw_parts):
-                    expected_matches.append(kw)
+    
     # Track-specific keyword matching
+    track_keywords = ATS_KEYWORDS.get(track, ATS_KEYWORDS.get("General", []))
     keyword_matches = [kw for kw in track_keywords if re.search(r'\b' + re.escape(kw.lower()) + r'\b', text_lower)]
     
     # Technical depth indicators
@@ -160,10 +182,12 @@ def analyze_answer_quality(text: str, question: str = "", track: str = "General"
     else:
         completeness = 5
     
-    # AI-based semantic similarity (if question provided)
+    # Direct keyword matching ratio (if expected answer provided)
     semantic_similarity = 0.0
-    if question:
-        semantic_similarity = compute_semantic_similarity(question, text)
+    if expected_answer and expected_answer_keywords:
+        matched_keywords = len(expected_matches)
+        total_keywords = len(expected_answer_keywords)
+        semantic_similarity = matched_keywords / total_keywords if total_keywords > 0 else 0.0
     
     return {
         "word_count": word_count,
@@ -173,12 +197,13 @@ def analyze_answer_quality(text: str, question: str = "", track: str = "General"
         "refusal_phrases": refusal_count,
         "keyword_matches": keyword_matches,
         "expected_matches": expected_matches,
-        "semantic_similarity": semantic_similarity
+        "semantic_similarity": semantic_similarity,
+        "expected_answer_keywords": expected_answer_keywords
     }
 
 
 def calculate_detailed_score(analysis: dict, question: str = "") -> Tuple[float, List[str]]:
-    """Calculate a detailed score out of 100 with component breakdown."""
+    """Calculate a detailed score out of 100 with focus on keyword matching."""
     if not analysis:
         return 0.0, ["No analysis data available"]
     
@@ -200,87 +225,42 @@ def calculate_detailed_score(analysis: dict, question: str = "") -> Tuple[float,
         feedback_items.append(f"Low score: Uncertainty detected ({uncertainty_level} phrases)")
         return total_score, feedback_items
     
-    # Check for expected keywords - heavily weighted
+    # Focus on expected answer keyword matching (70% weight)
     expected_matches = len(analysis.get("expected_matches", []))
-    expected_keywords_count = analysis.get("expected_keywords_count", 0)
+    expected_keywords = analysis.get("expected_answer_keywords", [])
+    expected_keywords_count = len(expected_keywords)
     
-    # 1. Expected Keywords Match (40% weight) - How well does the answer match expected keywords?
+    # 1. Expected Answer Keywords Match (70% weight) - How well does the answer match expected answer keywords?
     expected_match_ratio = expected_matches / max(expected_keywords_count, 1) if expected_keywords_count > 0 else 0
-    expected_score = expected_match_ratio * 40  # Scale to 40 points
+    expected_score = expected_match_ratio * 70  # Scale to 70 points
     scores["expected_keywords"] = expected_score
     
     if expected_match_ratio >= 0.8:
-        feedback_items.append(f"Excellent keyword match (+{expected_score:.1f}/40)")
+        feedback_items.append(f"Excellent keyword match (+{expected_score:.1f}/70)")
     elif expected_match_ratio >= 0.6:
-        feedback_items.append(f"Good keyword match (+{expected_score:.1f}/40)")
+        feedback_items.append(f"Good keyword match (+{expected_score:.1f}/70)")
     elif expected_match_ratio >= 0.4:
-        feedback_items.append(f"Moderate keyword match (+{expected_score:.1f}/40)")
+        feedback_items.append(f"Moderate keyword match (+{expected_score:.1f}/70)")
     elif expected_match_ratio >= 0.2:
-        feedback_items.append(f"Low keyword match (+{expected_score:.1f}/40)")
+        feedback_items.append(f"Low keyword match (+{expected_score:.1f}/70)")
     else:
-        feedback_items.append(f"Poor keyword match (+{expected_score:.1f}/40)")
+        feedback_items.append(f"Poor keyword match (+{expected_score:.1f}/70)")
     
-    # 2. Semantic Relevance (20% weight) - How well does the answer relate to the question?
-    semantic_sim = analysis.get("semantic_similarity", 0.0)
-    semantic_score = semantic_sim * 20  # Scale to 20 points
-    scores["semantic"] = semantic_score
-    
-    if semantic_sim >= 0.8:
-        feedback_items.append(f"Excellent semantic relevance (+{semantic_score:.1f}/20)")
-    elif semantic_sim >= 0.6:
-        feedback_items.append(f"Good semantic relevance (+{semantic_score:.1f}/20)")
-    elif semantic_sim >= 0.4:
-        feedback_items.append(f"Moderate semantic relevance (+{semantic_score:.1f}/20)")
-    elif semantic_sim >= 0.2:
-        feedback_items.append(f"Low semantic relevance (+{semantic_score:.1f}/20)")
-    else:
-        feedback_items.append(f"Poor semantic relevance (+{semantic_score:.1f}/20)")
-    
-    # 2. Completeness (15% weight) - Is the answer sufficiently detailed?
+    # 2. Completeness (20% weight) - Is the answer sufficiently detailed?
     completeness = analysis.get("completeness", 0)
-    completeness_score = (completeness / 5.0) * 15  # Scale to 15 points
+    completeness_score = (completeness / 5.0) * 20  # Scale to 20 points
     scores["completeness"] = completeness_score
     
     if completeness >= 4:
-        feedback_items.append(f"Comprehensive response (+{completeness_score:.1f}/15)")
+        feedback_items.append(f"Comprehensive response (+{completeness_score:.1f}/20)")
     elif completeness >= 3:
-        feedback_items.append(f"Adequate detail (+{completeness_score:.1f}/15)")
+        feedback_items.append(f"Adequate detail (+{completeness_score:.1f}/20)")
     elif completeness >= 2:
-        feedback_items.append(f"Basic detail (+{completeness_score:.1f}/15)")
+        feedback_items.append(f"Basic detail (+{completeness_score:.1f}/20)")
     else:
-        feedback_items.append(f"Insufficient detail (+{completeness_score:.1f}/15)")
+        feedback_items.append(f"Insufficient detail (+{completeness_score:.1f}/20)")
     
-    # 3. Technical Depth (20% weight) - Does the answer show technical expertise?
-    tech_terms = analysis.get("technical_terms", 0)
-    # Cap at 10 technical terms for maximum score
-    tech_score = min(20.0, (tech_terms / 10.0) * 20)  # Scale to 20 points
-    scores["technical"] = tech_score
-    
-    if tech_terms >= 7:
-        feedback_items.append(f"Strong technical vocabulary (+{tech_score:.1f}/20)")
-    elif tech_terms >= 4:
-        feedback_items.append(f"Good technical vocabulary (+{tech_score:.1f}/20)")
-    elif tech_terms >= 1:
-        feedback_items.append(f"Some technical terms (+{tech_score:.1f}/20)")
-    else:
-        feedback_items.append(f"Limited technical vocabulary (+{tech_score:.1f}/20)")
-    
-    # 4. Keyword Usage (15% weight) - Track-specific terminology
-    keyword_count = len(analysis.get("keyword_matches", []))
-    # Cap at 10 keywords for maximum score
-    keyword_score = min(15.0, (keyword_count / 10.0) * 15)  # Scale to 15 points
-    scores["keywords"] = keyword_score
-    
-    if keyword_count >= 5:
-        feedback_items.append(f"Excellent keyword usage (+{keyword_score:.1f}/15)")
-    elif keyword_count >= 3:
-        feedback_items.append(f"Good keyword usage (+{keyword_score:.1f}/15)")
-    elif keyword_count >= 1:
-        feedback_items.append(f"Some relevant keywords (+{keyword_score:.1f}/15)")
-    else:
-        feedback_items.append(f"Few relevant keywords (+{keyword_score:.1f}/15)")
-    
-    # 5. Confidence Bonus (10% weight) - Reward confidence
+    # 3. Confidence Bonus (10% weight) - Reward confidence
     word_count = analysis.get("word_count", 0)
     # Bonus for substantial answers
     if word_count >= 50:
@@ -304,7 +284,7 @@ def calculate_detailed_score(analysis: dict, question: str = "") -> Tuple[float,
     
     return total_score, feedback_items
 
-def score_answer(text: str, question: str = "", track: str = "General", expected_keywords: list = None) -> Tuple[int, str]:
+def score_answer(text: str, question: str = "", track: str = "General", expected_keywords: list = None, expected_answer: str = None) -> Tuple[int, str]:
     """Enhanced answer scoring with detailed analysis and 100-point scale."""
     
     # Handle empty or placeholder answers
@@ -318,10 +298,8 @@ def score_answer(text: str, question: str = "", track: str = "General", expected
     if not processed_text:
         return 1, "Blank answer - Zero score."
     
-    # Analyze answer quality (includes AI semantic similarity)
-    analysis = analyze_answer_quality(processed_text, question, track, expected_keywords)
-    # Add expected keywords count for scoring
-    analysis["expected_keywords_count"] = len(expected_keywords) if expected_keywords else 0
+    # Analyze answer quality (focus on keyword matching with expected answer)
+    analysis = analyze_answer_quality(processed_text, question, track, expected_keywords, expected_answer)
     
     # Calculate detailed score
     detailed_score, feedback_items = calculate_detailed_score(analysis, question)

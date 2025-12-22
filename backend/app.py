@@ -20,7 +20,7 @@ from email.mime.multipart import MIMEMultipart
 
 from interviewer import Interviewer
 from model.stt import WhisperSTT
-from database.db_helper import init_db, save_transcript, get_transcript, save_answer, save_resume, save_ats_score, save_assessment, save_schedule, save_offer, save_course_enroll, save_lab_submission, get_latest_resume_text, list_sessions, get_answers_for_session, update_answer_text_by_media, get_session
+from database.db_helper import init_db, save_transcript, get_transcript, save_answer, save_resume, save_ats_score, save_assessment, save_schedule, save_offer, save_course_enroll, save_lab_submission, get_latest_resume_text, list_sessions, get_answers_for_session, update_answer_text_by_media, get_session, update_answer_score, update_final_score
 from utils.ats_scoring import compute_ats_score
 from utils.coding_judge import pick_problem, grade_code
 from utils.scheduler import normalize_slot, is_valid_slot
@@ -31,7 +31,7 @@ from utils.answer_verifier import verify_transcript, verify_session
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "model", "models"))
 DB_PATH = os.path.join(BASE_DIR, "database", "interviews.db")
-STATIC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "static"))
+STATIC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
 
 # Email Configuration (Update these with your email credentials)
@@ -43,7 +43,10 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")  # Your app password
 SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USERNAME)
 SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "AI Interview System")
 
-app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
+# Hugging Face API Key Configuration
+HF_API_KEY = os.getenv("HF_API_KEY", "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")
+
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
 CORS(app)
 
 # Ensure DB exists
@@ -81,7 +84,7 @@ def synthesize_tts(text, session_id):
         
         engine.save_to_file(text, full_path)
         engine.runAndWait()
-        return f"/static/media/tts/{session_id}/{filename}"
+        return f"/media/tts/{session_id}/{filename}"
     except Exception as e:
         print(f"TTS Error: {e}")
         return None
@@ -145,8 +148,8 @@ def start():
     first_question = interviewer.start_session(session_id=session_id, role=track, candidate_name=candidate_name)
 
     bot_video_path = os.path.join(STATIC_DIR, "media", "bot.mp4")
-    bot_video_url = "/static/media/bot.mp4" if os.path.exists(bot_video_path) else None
-    bot_image_url = url_for("static", filename="media/bot.svg")
+    bot_video_url = "/media/bot.mp4" if os.path.exists(bot_video_path) else None
+    bot_image_url = "/media/bot.svg"
     tts_url = synthesize_tts(first_question, session_id)
 
     return jsonify({
@@ -184,7 +187,7 @@ def answer():
             filename = f"{int(time.time())}.webm"
             full_path = os.path.join(media_dir, filename)
             file.save(full_path)
-            saved_media_path = f"/static/media/answers/{sid}/{filename}"
+            saved_media_path = f"/media/answers/{sid}/{filename}"
             session_id = sid
 
     # Fallback to JSON body if session_id still missing
@@ -203,7 +206,7 @@ def answer():
         answer_text = "[video_answer]"
         full_path = None
         try:
-            rel = saved_media_path.replace("/static/", "")
+            rel = saved_media_path.replace("/", "", 1)
             full_path = os.path.join(STATIC_DIR, rel.replace("/", os.sep))
         except Exception:
             full_path = None
@@ -221,8 +224,8 @@ def answer():
     resp = dict(resp or {})
     resp["media_path"] = saved_media_path
     bot_video_path = os.path.join(STATIC_DIR, "media", "bot.mp4")
-    resp["bot_video_url"] = "/static/media/bot.mp4" if os.path.exists(bot_video_path) else None
-    resp["bot_image_url"] = url_for("static", filename="media/bot.svg")
+    resp["bot_video_url"] = "/media/bot.mp4" if os.path.exists(bot_video_path) else None
+    resp["bot_image_url"] = "/media/bot.svg"
     # Generate TTS for next question if available
     next_q = resp.get("next_question")
     resp["tts_url"] = synthesize_tts(next_q, session_id) if next_q else None
@@ -301,7 +304,7 @@ def admin_session_detail(session_id):
     final_score = session.get("final_score")
     
     answers = get_answers_for_session(DB_PATH, session_id)
-    verification = verify_session(t, answers)
+    verification = verify_session(t, answers, hf_api_key=HF_API_KEY)
     
     return jsonify({
         "session_id": session_id, 
@@ -326,7 +329,7 @@ def admin_rank():
         sid = r["id"]
         t = get_transcript(DB_PATH, sid) or ""
         answers = get_answers_for_session(DB_PATH, sid)
-        v = verify_session(t, answers)
+        v = verify_session(t, answers, hf_api_key=HF_API_KEY)
         ranked.append({
             "id": sid,
             "created_at": r["created_at"],
@@ -363,7 +366,7 @@ def send_interview_email():
     # Get answers and calculate scores
     answers = get_answers_for_session(DB_PATH, session_id)
     transcript = session.get("transcript", "")
-    verification = verify_session(transcript, answers)
+    verification = verify_session(transcript, answers, hf_api_key=HF_API_KEY)
     
     scores = [a["score"] for a in answers if a["score"] is not None]
     avg_score = round(sum(scores) / len(scores), 1) if scores else 0.0
@@ -528,6 +531,37 @@ def send_interview_email():
                 "note": "For Gmail, create App Password at https://myaccount.google.com/apppasswords"
             }
         })
+
+@app.route("/admin/update-score", methods=["POST"])
+def update_interview_score():
+    """Update individual answer scores or final interview score"""
+    data = request.get_json(silent=True) or {}
+    session_id = data.get("session_id")
+    answer_index = data.get("answer_index")
+    score = data.get("score")
+    feedback = data.get("feedback")
+    final_score = data.get("final_score")
+    
+    if not session_id:
+        return jsonify({"error": "session_id missing"}), 400
+    
+    # Update final score if provided
+    if final_score is not None:
+        try:
+            update_final_score(DB_PATH, session_id, final_score)
+            return jsonify({"success": True, "message": "Final score updated successfully"})
+        except Exception as e:
+            return jsonify({"error": f"Failed to update final score: {str(e)}"}), 500
+    
+    # Update individual answer score if provided
+    if answer_index is not None and score is not None:
+        try:
+            update_answer_score(DB_PATH, session_id, answer_index, score, feedback)
+            return jsonify({"success": True, "message": "Answer score updated successfully"})
+        except Exception as e:
+            return jsonify({"error": f"Failed to update answer score: {str(e)}"}), 500
+    
+    return jsonify({"error": "Either final_score or answer_index+score must be provided"}), 400
 
 
 @app.route("/funnel", methods=["GET"])
