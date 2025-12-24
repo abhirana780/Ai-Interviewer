@@ -299,6 +299,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 startInterview();
             }
         }, 500);
+    } else {
+        // No session ID in URL, start a new interview automatically
+        addMsg("System: Starting new interview session...", "system");
+        // Auto-start interview
+        setTimeout(() => {
+            if (startBtn) {
+                startBtn.click();
+            } else {
+                // Fallback: directly call the start function
+                startInterview();
+            }
+        }, 500);
     }
     
     initCamera();
