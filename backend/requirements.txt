@@ -1,0 +1,16 @@
+flask
+flask-cors
+pyttsx3
+gpt4all
+pdfminer.six
+python-docx
+scikit-learn
+sentence-transformers
+transformers
+torch
+torchaudio
+soundfile
+resampy
+av
+moviepy
+imageio-ffmpeg
