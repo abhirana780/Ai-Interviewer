@@ -33,7 +33,7 @@ FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
 HF_API_KEY = os.getenv("HF_API_KEY", "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")
 
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
-CORS(app)
+CORS(app,origin="*")
 
 # Ensure DB exists
 init_db(DB_PATH)

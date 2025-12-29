@@ -11,6 +11,7 @@ torch
 torchaudio
 soundfile
 resampy
+gunicorn
 av
 moviepy
 imageio-ffmpeg
