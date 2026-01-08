@@ -47,7 +47,12 @@ function Register({ setIsAuthenticated }) {
         name: formData.name,
         email: formData.email,
         password: formData.password
+      }, {
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
       });
+
       
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);

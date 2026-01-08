@@ -28,7 +28,12 @@ function Login({ setIsAuthenticated }) {
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, formData);
+      const response = await axios.post(`${API_URL}/api/auth/login`, formData, {
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
+
       
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
