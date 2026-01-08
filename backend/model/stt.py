@@ -7,7 +7,7 @@ class WhisperSTT:
         self.processor = None
         self.forced_decoder_ids = None
         self.device = device or ("cuda" if self._cuda_available() else "cpu")
-        self.model_name = model_name or "AventIQ-AI/whisper-audio-to-text"
+        self.model_name = model_name or "openai/whisper-base.en"
         self._init_model(hf_token)
 
     def _cuda_available(self):

@@ -23,6 +23,8 @@
             z-index: 100;
         }
     </style>
+    <!-- Load face-api.js -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 </head>
 <body>
 
@@ -52,7 +54,53 @@
         <button id="stop" type="button">Submit</button>
         <span id="timer">00:00</span>
     </div>
-</div><script src="/js/script.js"></script>
+    <!-- Technology Selection Modal -->
+    <div id="tech-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Select Interview Topic</h3>
+            </div>
+            <div class="modal-body">
+                <p>Choose a technology stack or topic for your AI interview:</p>
+                <div class="tech-grid">
+                    <button class="tech-btn" data-value="AI Engineer">
+                        <span class="icon">🤖</span> AI / ML
+                    </button>
+                    <button class="tech-btn" data-value="Data Scientist">
+                        <span class="icon">📊</span> Data Science
+                    </button>
+                    <button class="tech-btn" data-value="Data Analyst">
+                        <span class="icon">📈</span> Data Analytics
+                    </button>
+                    <button class="tech-btn" data-value="MERN Stack Developer">
+                        <span class="icon">⚛️</span> MERN Stack
+                    </button>
+                    <button class="tech-btn" data-value="Cloud Engineer">
+                        <span class="icon">☁️</span> Cloud Computing
+                    </button>
+                    <button class="tech-btn" data-value="Cybersecurity Engineer">
+                        <span class="icon">🔒</span> Cybersecurity
+                    </button>
+                    <button class="tech-btn" data-value="Network Engineer">
+                        <span class="icon">🌐</span> Networking
+                    </button>
+                    <button class="tech-btn" data-value="Software Engineer">
+                        <span class="icon">💻</span> Software Eng (Gen)
+                    </button>
+                </div>
+                <!-- Custom input -->
+                <div class="custom-tech-input">
+                    <label for="custom-tech">Or enter a specific topic:</label>
+                    <input type="text" id="custom-tech" placeholder="e.g. Rust, Go, Machine Learning...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="start-interview-btn" class="primary-btn">Start Interview</button>
+            </div>
+        </div>
+    </div>
+
+<script src="/js/script.js"></script>
 
 </body>
 </html>

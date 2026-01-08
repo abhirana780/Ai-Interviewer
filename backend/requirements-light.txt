@@ -1,0 +1,38 @@
+# Lightweight requirements for API-based deployment
+# This reduces the Docker image from ~2GB to ~200MB
+
+# Core Flask
+flask==3.0.0
+flask-cors==4.0.0
+flask-jwt-extended==4.6.0
+
+# Database
+bcrypt==4.1.2
+
+# Environment
+python-dotenv==1.0.0
+
+# HTTP Client for API calls
+requests==2.31.0
+
+# Production server
+gunicorn==21.2.0
+
+# Document processing (keep if needed)
+pdfminer.six==20221105
+python-docx==1.1.0
+
+# Optional: If using OpenAI API instead of local models
+# openai==1.12.0
+
+# Optional: If using Hugging Face Inference API
+# huggingface-hub==0.20.0
+
+# Note: Removed heavy dependencies:
+# - torch (~700MB)
+# - torchaudio
+# - transformers
+# - sentence-transformers
+# - gpt4all
+# - pyttsx3 (use cloud TTS instead)
+# - moviepy, av, imageio-ffmpeg (if not processing videos)

@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "7860:7860"
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      - HF_API_KEY=${HF_API_KEY:-your-hf-api-key}
+    volumes:
+      - ./backend/database:/app/database
+      - ./backend/media:/app/media
+    restart: unless-stopped
+    networks:
+      - ai-interviewer
+
+  frontend:
+    build:
+      context: ./frontend-new
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:7860
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - ai-interviewer
+
+networks:
+  ai-interviewer:
+    driver: bridge
+
+volumes:
+  backend-data:
+  backend-media:

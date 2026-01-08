@@ -1,0 +1,12 @@
+venv
+.venv
+.env
+__pycache__
+*.pyc
+.git
+media
+tmp
+frontend/media
+backend/database
+.env.local
+.DS_Store

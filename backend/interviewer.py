@@ -1,10 +1,7 @@
 from model.pipeline import ModelPipeline
 from utils.helpers import sanitize_text
 from utils.scoring import score_answer
-from utils.prompts import INTERVIEWER_PROMPT
-from database.db_helper import get_transcript, save_transcript
-import json
-import re
+from database.db_helper import get_transcript, save_transcript, get_session
 import random
 
 
@@ -593,6 +590,28 @@ class Interviewer:
                     "question": "Explain the concept of security by design."
                 }
             ],
+            "Networking": [
+                {
+                    "question": "Explain the OSI model layers and their functions.",
+                    "expected_answer": "The OSI model has 7 layers. Layer 1 (Physical) transmits raw bit streams. Layer 2 (Data Link) handles node-to-node transfer and error detection (MAC addresses). Layer 3 (Network) manages routing and addressing (IP). Layer 4 (Transport) ensures reliable delivery and flow control (TCP/UDP). Layer 5 (Session) establishes and manages sessions. Layer 6 (Presentation) translates and encrypts data (SSL/TLS). Layer 7 (Application) provides network services to user applications (HTTP, FTP)."
+                },
+                {
+                    "question": "What is the difference between TCP and UDP?",
+                    "expected_answer": "TCP is connection-oriented, ensuring reliable, ordered, and error-checked delivery of data. It uses a three-way handshake and handles congestion control. It's used for web browsing, email, and file transfers where accuracy matters. UDP is connectionless and does not guarantee delivery or order. It has lower overhead and latency. It's used for real-time applications like video streaming, VoIP, and online gaming where speed is critical and minor data loss is acceptable."
+                },
+                {
+                    "question": "How does DNS work?",
+                    "expected_answer": "DNS (Domain Name System) translates human-readable domain names (like google.com) into IP addresses. When a user queries a domain, the resolver first checks local cache. If missing, it queries a Root Server, which points to a TLD Server (.com). The TLD server points to the Authoritative Name Server for that domain, which returns the IP. This result is then cached by the resolver and OS to speed up future requests."
+                },
+                {
+                    "question": "Explain the concept of Subnetting.",
+                    "expected_answer": "Subnetting is the practice of dividing a large network into smaller, manageable sub-networks (subnets). It improves performance by reducing broadcast traffic and enhances security by isolating network segments. It involves borrowing bits from the host portion of an IP address to create a subnet mask. This allows administrators to allocate IP addresses more efficiently and control traffic flow between different departments or locations."
+                },
+                {
+                    "question": "What is a VLAN and why is it used?",
+                    "expected_answer": "A VLAN (Virtual Local Area Network) is a logical grouping of devices in the same broadcast domain, regardless of their physical location. It is configured on switches. VLANs improve security by isolating sensitive traffic, reduce broadcast domains to improve performance, and simplify network management by grouping users by function (e.g., HR, Engineering) rather than physical connection."
+                }
+            ],
             "default": [
                 {
                     "question": "Tell me about a time you solved a difficult problem.",
@@ -613,73 +632,44 @@ class Interviewer:
                 {
                     "question": "Where do you want to grow in the next year?",
                     "expected_answer": "In the next year, I want to deepen my expertise in cloud-native technologies and microservices architecture. I plan to gain hands-on experience with Kubernetes, service meshes, and advanced DevOps practices. I want to improve my leadership skills by taking on more mentoring responsibilities and potentially leading small projects. I'm interested in learning more about system design at scale and understanding business domains more deeply. I also want to contribute more to open-source projects and perhaps speak at technical conferences. Additionally, I'd like to develop better product sense to understand how technical decisions align with business objectives."
-                },
-                {
-                    "question": "Describe a situation where you had to work with a difficult team member.",
-                    "expected_answer": "I worked with a team member who consistently missed deadlines and delivered code with numerous bugs, affecting our sprint commitments. Rather than escalating immediately, I approached them privately to understand their challenges. I discovered they were struggling with a new technology we were using. I offered to pair program with them and shared learning resources. We established regular check-ins to track progress and address blockers early. I also adjusted task assignments to better match their strengths while they built confidence in weaker areas. Over time, their performance improved significantly, and they became a valuable contributor. This experience taught me the importance of empathy, patience, and proactive communication in team dynamics."
-                },
-                {
-                    "question": "How do you handle stress and pressure at work?",
-                    "expected_answer": "I handle workplace stress by maintaining a structured approach to my work and practicing good time management. I break large tasks into smaller milestones to avoid feeling overwhelmed. I prioritize tasks based on impact and urgency. I communicate proactively with my team about challenges and potential delays. I take regular breaks and practice mindfulness techniques to maintain mental clarity. I maintain a healthy work-life balance with regular exercise and hobbies outside work. When facing high-pressure situations, I focus on what I can control and remain solution-oriented. I also lean on my team for support and collaborate to find creative solutions. I view pressure as a catalyst for growth and innovation."
-                },
-                {
-                    "question": "What is your greatest professional achievement?",
-                    "expected_answer": "My greatest professional achievement was leading the redesign of a legacy customer portal that was plagued with performance issues and poor user experience. I architected a new solution using modern React frontend with a GraphQL API backed by microservices. I coordinated with UX designers, product managers, and backend engineers throughout the project. I implemented CI/CD pipelines, automated testing, and monitoring solutions. The new portal reduced page load times by 80%, increased user engagement by 40%, and received positive feedback from customers. The project was delivered on time and under budget. This achievement demonstrated my technical leadership, project management, and ability to deliver impactful solutions that drive business results."
-                },
-                {
-                    "question": "How do you approach learning new skills or technologies?",
-                    "expected_answer": "I approach learning new technologies systematically, starting with official documentation and tutorials to understand core concepts. I build small proof-of-concept projects to apply what I've learned practically. I join relevant online communities and forums to learn from experienced practitioners. I read books, blog posts, and research papers for deeper understanding. I attend webinars, conferences, and meetups to stay current with industry trends. I practice deliberate learning by setting specific goals and timelines. I document my learning journey through notes and blog posts, which reinforces understanding. I also teach others what I've learned, as explaining concepts helps solidify my knowledge. I prefer hands-on learning over passive consumption."
-                },
-                {
-                    "question": "Describe a time when you failed and what you learned from it.",
-                    "expected_answer": "Early in my career, I underestimated the complexity of migrating a monolithic application to microservices and promised a timeline that was overly optimistic. Despite working long hours, we missed the deadline and delivered a solution with integration issues. I learned the importance of thorough technical analysis and realistic estimation. I now spend more time on architecture design and risk assessment. I involve senior team members in planning complex projects. I learned to communicate potential delays transparently rather than trying to meet unrealistic expectations. I also implemented better testing strategies and rollback plans. This failure taught me humility and the value of experience in project estimation."
-                },
-                {
-                    "question": "What are your strengths and weaknesses?",
-                    "expected_answer": "My strengths include strong problem-solving abilities, attention to detail, and effective communication with both technical and non-technical stakeholders. I excel at breaking down complex problems and designing scalable solutions. I'm a quick learner and adapt well to new technologies. My collaborative nature helps me work effectively in team environments. As for weaknesses, I sometimes get deeply focused on technical details and need to remind myself to consider the bigger picture. I'm working on balancing perfectionism with pragmatism to deliver timely solutions. I also tend to take on too much responsibility, so I'm learning to delegate more effectively. I actively seek feedback to address these areas for improvement."
-                },
-                {
-                    "question": "How do you ensure work-life balance?",
-                    "expected_answer": "I ensure work-life balance by setting clear boundaries between work and personal time. I establish specific work hours and stick to them unless there's a genuine emergency. I prioritize tasks effectively during work hours to avoid bringing work home. I take regular breaks throughout the day and use vacation time fully. I engage in hobbies and physical activities outside work, such as hiking and reading. I maintain social connections and spend quality time with family and friends. I practice mindfulness and stress management techniques. I also communicate my availability clearly to colleagues and avoid checking work emails during personal time. This balance helps me stay productive and prevents burnout."
-                },
-                {
-                    "question": "What type of work environment do you thrive in?",
-                    "expected_answer": "I thrive in collaborative environments where team members respect each other and share knowledge freely. I prefer workplaces that encourage experimentation and learning from failures. I enjoy environments with clear communication channels and transparent decision-making processes. I do well in organizations that invest in employee growth through training and mentorship programs. I appreciate having autonomy to make technical decisions while working within agreed-upon frameworks. I thrive when there's alignment between company values and my personal values. I also prefer environments that promote work-life balance and recognize achievements. Agile methodologies and continuous improvement cultures suit me well."
-                },
-                {
-                    "question": "How do you handle conflicting priorities?",
-                    "expected_answer": "When facing conflicting priorities, I first assess the impact and urgency of each task to understand stakeholder needs. I communicate with all involved parties to clarify expectations and deadlines. I look for common ground or ways to address multiple priorities with a single solution. I escalate to managers when necessary to get guidance on prioritization. I document decisions and trade-offs to ensure alignment. I break down large tasks into smaller deliverables to make progress on multiple fronts. I'm transparent about capacity constraints and negotiate realistic timelines. I also consider the long-term strategic importance of tasks, not just immediate demands. Regular reassessment helps adjust priorities as situations evolve."
-                },
-                {
-                    "question": "Describe your leadership style.",
-                    "expected_answer": "My leadership style is collaborative and empowering. I believe in leading by example and building trust through consistent actions. I focus on enabling team members to grow by providing mentorship, learning opportunities, and challenging assignments. I encourage open communication and create psychological safety for team members to share ideas and concerns. I make decisions based on data and team input, explaining the rationale behind choices. I delegate effectively while providing support and guidance when needed. I celebrate team successes and take responsibility for failures. I adapt my approach based on individual team member needs and development stages. I also advocate for my team's interests and remove obstacles to their success."
-                },
-                {
-                    "question": "What makes you a good fit for this role?",
-                    "expected_answer": "I'm a good fit for this role because of my relevant technical experience with the required technologies and my proven track record of delivering quality software solutions. I bring strong problem-solving skills and the ability to work effectively in team environments. My experience with similar projects demonstrates that I can hit the ground running and contribute immediately. I'm passionate about continuous learning and staying current with industry best practices. I align with the company's values of innovation, collaboration, and excellence. My communication skills enable me to work effectively with cross-functional teams. I'm adaptable and thrive in dynamic environments. I'm also committed to writing clean, maintainable code and following best practices that benefit the entire organization."
-                },
-                {
-                    "question": "How do you measure success in your work?",
-                    "expected_answer": "I measure success through multiple dimensions: customer satisfaction, achieved through positive user feedback and increased engagement metrics; code quality, measured by low bug rates, good test coverage, and maintainable architecture; team collaboration, reflected in positive peer feedback and successful project deliveries; personal growth, tracked through skill development and taking on increasing responsibilities; and business impact, demonstrated by meeting project goals, improving system performance, and contributing to company objectives. I also value recognition from peers and managers, successful mentorship of junior developers, and contributions to the broader technical community through knowledge sharing."
-                },
-                {
-                    "question": "What are your career goals for the next 5 years?",
-                    "expected_answer": "In the next 5 years, I aspire to grow into a senior technical leadership role, potentially as a principal engineer or engineering manager. I want to deepen my expertise in distributed systems and cloud architecture while developing stronger people management skills. I hope to lead significant technical initiatives that have company-wide impact. I'm interested in contributing to technical strategy and mentoring the next generation of engineers. I also want to expand my knowledge in emerging technologies like AI/ML and blockchain. Eventually, I'd like to have opportunities to influence product direction and business strategy. I'm committed to continuous learning and adapting to where the industry evolves."
-                },
-                {
-                    "question": "How do you contribute to team success?",
-                    "expected_answer": "I contribute to team success by consistently delivering high-quality code and meeting commitments. I actively participate in code reviews, providing constructive feedback that improves overall code quality. I share knowledge through documentation, presentations, and informal mentoring. I help identify and solve blockers that affect team productivity. I participate in retrospectives and suggest process improvements. I collaborate effectively with other teams and stakeholders. I take ownership of problems and work collaboratively to find solutions. I also celebrate team wins and support teammates during challenges. I'm proactive in identifying areas where I can add value beyond my immediate responsibilities."
-                },
-                {
-                    "question": "What would your previous colleagues say about you?",
-                    "expected_answer": "My previous colleagues would likely describe me as reliable, collaborative, and technically competent. They'd mention that I'm someone they can depend on to deliver quality work and meet deadlines. They'd note my willingness to help teammates with challenging problems and my ability to explain complex technical concepts clearly. They might say I'm a good communicator who bridges the gap between technical and non-technical team members. They'd probably mention my attention to detail and commitment to writing clean, maintainable code. They might also note my positive attitude and ability to stay calm under pressure. Colleagues would likely say I'm a team player who contributes to a positive work environment."
                 }
             ]
         }
 
     def start_session(self, session_id, role="Software Engineer", candidate_name=None):
-        role = sanitize_text(role) or "Software Engineer"
-        bank = self.question_banks.get(role) or self.question_banks.get("Software Engineer") or self.question_banks["default"]
+        role_key = sanitize_text(role) or "Software Engineer"
+        
+        # Role Mapping to match question keys
+        role_map = {
+            "ai engineer": "AI/ML",
+            "ai/ml": "AI/ML",
+            "artificial intelligence": "AI/ML",
+            "data scientist": "Data Science",
+            "data science": "Data Science",
+            "data analyst": "Data Analytics",
+            "data analytics": "Data Analytics",
+            "mern": "MERN",
+            "mern stack": "MERN",
+            "mern stack developer": "MERN",
+            "cloud": "Cloud",
+            "cloud engineer": "Cloud",
+            "cyber": "Cyber",
+            "cybersecurity": "Cyber",
+            "cybersecurity engineer": "Cyber",
+            "software engineer": "Software Engineer",
+            "software developer": "Software Engineer",
+            "network": "Networking",
+            "network engineer": "Networking",
+            "networking": "Networking"
+        }
+        
+        # Normalize role for lookup
+        lookup_role = role_key.lower()
+        bank_key = role_map.get(lookup_role, "Software Engineer")
+        
+        # Try to find specific bank, fallback to Software Engineer, then default
+        bank = self.question_banks.get(bank_key) or self.question_banks.get("Software Engineer") or self.question_banks["default"]
+        
         # Shuffle questions to randomize order for each session
         questions = list(bank)
         random.shuffle(questions)
@@ -717,7 +707,6 @@ class Interviewer:
         expected_keywords = current_question_obj.get("keywords", []) if isinstance(current_question_obj, dict) else []
         
         # Get candidate information from database to preserve during updates
-        from database.db_helper import get_session
         session_data = get_session(self.db_path, session_id) or {}
         candidate_name = session_data.get("candidate_name", "")
         mobile_number = session_data.get("mobile_number", "")

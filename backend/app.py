@@ -1,5 +1,4 @@
 import os
-import sys
 
 # Load environment variables if not already loaded
 try:
@@ -10,33 +9,53 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, request, jsonify, send_from_directory, url_for
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import uuid
 import time
-# Email imports removed as per requirements
+from datetime import timedelta
 
 from interviewer import Interviewer
 from model.stt import WhisperSTT
 from database.db_helper import init_db, save_transcript, get_transcript, save_answer, get_session
-# Unused utility imports removed as per requirements
-from utils.answer_verifier import verify_transcript, verify_session
+from database.auth_helper import (
+    init_auth_db, create_user, get_user_by_email, 
+    get_user_by_id, verify_password, link_session_to_user
+)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "model", "models"))
 DB_PATH = os.path.join(BASE_DIR, "database", "interviews.db")
-STATIC_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
+AUTH_DB_PATH = os.path.join(BASE_DIR, "database", "auth.db")
+# Use single variable for frontend directory
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
 
-# Email configuration removed as per requirements
+# JWT Configuration - REQUIRED in production
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    raise ValueError("JWT_SECRET_KEY environment variable is required")
 
-# Hugging Face API Key Configuration
-HF_API_KEY = os.getenv("HF_API_KEY", "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")
+# Hugging Face API Key Configuration - REQUIRED
+HF_API_KEY = os.getenv("HF_API_KEY")
+if not HF_API_KEY:
+    raise ValueError("HF_API_KEY environment variable is required")
 
-app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
-CORS(app,origin="*")
+# CORS Configuration
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
 
-# Ensure DB exists
+app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
+app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
+app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 16777216))  # 16MB default
+
+# SECURITY: Use specific origins, not wildcard
+CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=True)
+jwt = JWTManager(app)
+
+# Ensure DBs exist
 init_db(DB_PATH)
+init_auth_db(AUTH_DB_PATH)
 
 # Create the interviewer engine
 interviewer = Interviewer(model_dir=MODEL_DIR, db_path=DB_PATH)
@@ -46,7 +65,7 @@ def synthesize_tts(text, session_id):
     if not text:
         return None
     try:
-        media_dir = os.path.join(STATIC_DIR, "media", "tts", session_id)
+        media_dir = os.path.join(FRONTEND_DIR, "media", "tts", session_id)
         os.makedirs(media_dir, exist_ok=True)
         filename = f"tts_{int(time.time())}.wav"
         full_path = os.path.join(media_dir, filename)
@@ -66,7 +85,6 @@ def synthesize_tts(text, session_id):
         
         # Set reasonable speech rate
         engine.setProperty('rate', 130)
-        engine.setProperty('rate', 130)
         
         engine.save_to_file(text, full_path)
         engine.runAndWait()
@@ -74,7 +92,8 @@ def synthesize_tts(text, session_id):
     except Exception as e:
         print(f"TTS Error: {e}")
         return None
-    # Root and health endpoints
+
+# Root and health endpoints
 @app.route("/", methods=["GET"])
 def index():
     return send_from_directory(FRONTEND_DIR, "interviewer.html")
@@ -86,6 +105,81 @@ def interview_page():
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status":"healthy","time": int(time.time())})
+
+# Authentication routes
+@app.route("/api/auth/register", methods=["POST"])
+def register():
+    data = request.get_json()
+    
+    if not data or not data.get('name') or not data.get('email') or not data.get('password'):
+        return jsonify({"message": "Name, email, and password are required"}), 400
+    
+    # Check if user already exists
+    existing_user = get_user_by_email(AUTH_DB_PATH, data['email'])
+    if existing_user:
+        return jsonify({"message": "User with this email already exists"}), 409
+    
+    # Create user
+    user = create_user(AUTH_DB_PATH, data['name'], data['email'], data['password'])
+    if not user:
+        return jsonify({"message": "Failed to create user"}), 500
+    
+    # Generate JWT token
+    access_token = create_access_token(identity=user['id'])
+    
+    return jsonify({
+        "token": access_token,
+        "user": {
+            "id": user['id'],
+            "name": user['name'],
+            "email": user['email']
+        }
+    }), 201
+
+@app.route("/api/auth/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({"message": "Email and password are required"}), 400
+    
+    # Get user
+    user = get_user_by_email(AUTH_DB_PATH, data['email'])
+    if not user:
+        return jsonify({"message": "Invalid email or password"}), 401
+    
+    # Verify password
+    if not verify_password(data['password'], user['password_hash']):
+        return jsonify({"message": "Invalid email or password"}), 401
+    
+    # Generate JWT token
+    access_token = create_access_token(identity=user['id'])
+    
+    return jsonify({
+        "token": access_token,
+        "user": {
+            "id": user['id'],
+            "name": user['name'],
+            "email": user['email']
+        }
+    }), 200
+
+@app.route("/api/auth/me", methods=["GET"])
+@jwt_required()
+def get_current_user():
+    user_id = get_jwt_identity()
+    user = get_user_by_id(AUTH_DB_PATH, user_id)
+    
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    
+    return jsonify({
+        "user": {
+            "id": user['id'],
+            "name": user['name'],
+            "email": user['email']
+        }
+    }), 200
 
 # Register route removed as per requirements
 
@@ -110,12 +204,12 @@ def start():
             candidate_name = data.get("candidate_name") or ""
 
     # Ensure a media directory exists for this session
-    media_dir = os.path.join(STATIC_DIR, "media", session_id)
+    media_dir = os.path.join(FRONTEND_DIR, "media", session_id)
     os.makedirs(media_dir, exist_ok=True)
 
     first_question = interviewer.start_session(session_id=session_id, role=track, candidate_name=candidate_name)
 
-    bot_video_path = os.path.join(STATIC_DIR, "media", "bot.mp4")
+    bot_video_path = os.path.join(FRONTEND_DIR, "media", "bot.mp4")
     bot_video_url = "/media/bot.mp4" if os.path.exists(bot_video_path) else None
     bot_image_url = "/media/bot.svg"
     tts_url = synthesize_tts(first_question, session_id)
@@ -141,22 +235,48 @@ def answer():
         answer_text = request.form.get("answer") or request.form.get("answer_text") or answer_text
 
 
-    # Handle file upload if any, regardless of content-type header quirks
+    # Handle file upload if any
     file = None
     try:
         file = request.files.get("media")
     except Exception:
         file = None
+        
     if file:
         sid = session_id or (request.form.get("session_id") if request.form else None)
         if sid:
-            media_dir = os.path.join(STATIC_DIR, "media", "answers", sid)
-            os.makedirs(media_dir, exist_ok=True)
-            filename = f"{int(time.time())}.webm"
-            full_path = os.path.join(media_dir, filename)
-            file.save(full_path)
-            saved_media_path = f"/media/answers/{sid}/{filename}"
-            session_id = sid
+            # We no longer save video permanently to save space
+            # Instead, save to temp file -> transcribe -> delete
+            import tempfile
+            
+            # Determine extension
+            ext = ".webm"
+            if file.filename and "." in file.filename:
+                ext = "." + file.filename.rsplit(".", 1)[1]
+                
+            fd, temp_path = tempfile.mkstemp(suffix=ext)
+            os.close(fd)
+            
+            try:
+                file.save(temp_path)
+                
+                # Transcribe using improved STT
+                if stt_engine:
+                    transcribed = stt_engine.transcribe_file(temp_path)
+                    if transcribed and transcribed.strip():
+                        answer_text = transcribed.strip()
+            except Exception as e:
+                print(f"Processing error: {e}")
+            finally:
+                # Always clean up temp file to save space
+                try:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                except:
+                    pass
+            
+            # Do NOT save audio/video path to DB
+            saved_media_path = None
 
     # Fallback to JSON body if session_id still missing
     if not session_id:
@@ -164,34 +284,19 @@ def answer():
         session_id = data.get("session_id")
         answer_text = data.get("answer") or data.get("answer_text") or answer_text
 
-
-    # If media exists and text is empty or placeholder, transcribe
-    def _needs_stt(text):
-        t = (text or "").strip().lower()
-        return (t == "" or t == "[video_answer]")
-
-    if saved_media_path and _needs_stt(answer_text):
-        answer_text = "[video_answer]"
-        full_path = None
-        try:
-            rel = saved_media_path.replace("/", "", 1)
-            full_path = os.path.join(STATIC_DIR, rel.replace("/", os.sep))
-        except Exception:
-            full_path = None
-        if full_path and stt_engine:
-            t = stt_engine.transcribe_file(full_path)
-            if t and t.strip():
-                answer_text = t.strip()
-
+    # Skip old STT logic as we handled it above
+    
     if not session_id:
         return jsonify({"error": "session_id missing"}), 400
+
+
 
     resp = interviewer.handle_answer(session_id, answer_text)
 
     # Include media info and bot assets in response
     resp = dict(resp or {})
     resp["media_path"] = saved_media_path
-    bot_video_path = os.path.join(STATIC_DIR, "media", "bot.mp4")
+    bot_video_path = os.path.join(FRONTEND_DIR, "media", "bot.mp4")
     resp["bot_video_url"] = "/media/bot.mp4" if os.path.exists(bot_video_path) else None
     resp["bot_image_url"] = "/media/bot.svg"
     # Generate TTS for next question if available

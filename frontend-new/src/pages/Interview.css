@@ -1,0 +1,400 @@
+/* ===== Interview Container ===== */
+.interview-container {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    padding-bottom: 2rem;
+}
+
+/* ===== Interview Header ===== */
+.interview-header {
+    padding: 1.25rem 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.interview-header .header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.interview-header h2 {
+    font-size: 1.5rem;
+    margin: 0;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ===== Warning Banner ===== */
+.warning-banner {
+    max-width: 1600px;
+    margin: 0 auto 1.5rem;
+    padding: 1rem 2rem;
+    background: rgba(245, 87, 108, 0.1);
+    border: 1px solid rgba(245, 87, 108, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--accent-red);
+    text-align: center;
+    font-weight: 500;
+}
+
+/* ===== Interview Main ===== */
+.interview-main {
+    padding: 0 2rem;
+}
+
+.interview-layout {
+    max-width: 1600px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 1.5rem;
+}
+
+/* ===== Video Section ===== */
+.video-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.video-pane {
+    padding: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.video-wrapper {
+    position: relative;
+    width: 100%;
+    padding-bottom: 75%;
+    /* 4:3 aspect ratio */
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.video-wrapper video,
+.video-wrapper canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+}
+
+.face-count-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    border-radius: var(--radius-sm);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    z-index: 10;
+}
+
+.bot-video {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+}
+
+.bot-avatar {
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.bot-avatar svg {
+    width: 100%;
+    height: 100%;
+}
+
+.video-label {
+    margin-top: 0.75rem;
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.875rem;
+}
+
+/* ===== Controls Section ===== */
+.controls-section {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.btn-lg {
+    padding: 1.25rem 3rem;
+    font-size: 1.125rem;
+    min-width: 250px;
+}
+
+.btn-lg svg {
+    width: 24px;
+    height: 24px;
+}
+
+.recording-controls {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    width: 100%;
+    justify-content: center;
+}
+
+.timer {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: var(--text-primary);
+    min-width: 120px;
+    text-align: center;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+/* ===== Chat Section ===== */
+.chat-section {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 200px);
+    position: sticky;
+    top: 100px;
+}
+
+.chat-section h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-right: 0.5rem;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    text-align: center;
+    gap: 1rem;
+}
+
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    opacity: 0.5;
+}
+
+.chat-message {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-normal);
+}
+
+.chat-message:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.chat-message.bot {
+    border-left: 3px solid var(--accent-purple);
+}
+
+.chat-message.user {
+    border-left: 3px solid var(--accent-blue);
+}
+
+.message-avatar {
+    font-size: 2rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.message-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.message-header {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.message-text {
+    color: var(--text-primary);
+    line-height: 1.6;
+    word-wrap: break-word;
+}
+
+/* ===== Scrollbar for Chat ===== */
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-purple);
+}
+
+/* ===== Responsive Design ===== */
+@media (max-width: 1200px) {
+    .interview-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .chat-section {
+        max-height: 500px;
+        position: relative;
+        top: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .interview-main {
+        padding: 0 1rem;
+    }
+
+    .interview-header {
+        padding: 1rem;
+    }
+
+    .interview-header .header-content {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+
+    .video-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .controls-section {
+        padding: 1.5rem;
+    }
+
+    .recording-controls {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .btn-lg {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .timer {
+        font-size: 1.5rem;
+        width: 100%;
+    }
+
+    .chat-section {
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 480px) {
+    .interview-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .video-pane {
+        padding: 0.75rem;
+    }
+
+    .face-count-badge {
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+    }
+
+    .bot-avatar {
+        width: 80px;
+        height: 80px;
+    }
+
+    .controls-section {
+        padding: 1rem;
+    }
+
+    .btn-lg {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+    }
+
+    .chat-section {
+        padding: 1rem;
+    }
+
+    .chat-section h3 {
+        font-size: 1.125rem;
+    }
+
+    .chat-message {
+        padding: 0.75rem;
+    }
+
+    .message-avatar {
+        font-size: 1.5rem;
+        width: 32px;
+        height: 32px;
+    }
+}

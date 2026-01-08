@@ -182,12 +182,18 @@ def analyze_answer_quality(text: str, question: str = "", track: str = "General"
     else:
         completeness = 5
     
-    # Direct keyword matching ratio (if expected answer provided)
+    # True Semantic matching using AI model
     semantic_similarity = 0.0
-    if expected_answer and expected_answer_keywords:
-        matched_keywords = len(expected_matches)
-        total_keywords = len(expected_answer_keywords)
-        semantic_similarity = matched_keywords / total_keywords if total_keywords > 0 else 0.0
+    if expected_answer:
+        # Use the actual AI semantic similarity function
+        try:
+            semantic_similarity = compute_semantic_similarity(question, text)
+        except Exception:
+            # Fallback to keyword matching overlap if AI fails
+            if expected_answer_keywords:
+                matched_keywords = len(expected_matches)
+                total_keywords = len(expected_answer_keywords)
+                semantic_similarity = matched_keywords / total_keywords if total_keywords > 0 else 0.0
     
     return {
         "word_count": word_count,
@@ -226,25 +232,38 @@ def calculate_detailed_score(analysis: dict, question: str = "") -> Tuple[float,
         return total_score, feedback_items
     
     # Focus on expected answer keyword matching (70% weight)
+    # 1. Semantic Similarity (40% weight) - Using AI model or fallback
+    semantic_sim = analysis.get("semantic_similarity", 0.0)
+    semantic_score = semantic_sim * 40
+    scores["semantic"] = semantic_score
+    
+    if semantic_sim >= 0.8:
+        feedback_items.append(f"Excellent understanding (+{semantic_score:.1f}/40)")
+    elif semantic_sim >= 0.6:
+        feedback_items.append(f"Good understanding (+{semantic_score:.1f}/40)")
+    elif semantic_sim >= 0.4:
+        feedback_items.append(f"Moderate understanding (+{semantic_score:.1f}/40)")
+    else:
+        feedback_items.append(f"Low understanding (+{semantic_score:.1f}/40)")
+
+    # 2. Expected Answer Keywords Match (30% weight or 70% if semantic failed/missing)
+    # If semantic score is 0 but keywords are present, we might want to boost keyword weight, 
+    # but for now let's keep robust split.
     expected_matches = len(analysis.get("expected_matches", []))
     expected_keywords = analysis.get("expected_answer_keywords", [])
     expected_keywords_count = len(expected_keywords)
     
-    # 1. Expected Answer Keywords Match (70% weight) - How well does the answer match expected answer keywords?
     expected_match_ratio = expected_matches / max(expected_keywords_count, 1) if expected_keywords_count > 0 else 0
-    expected_score = expected_match_ratio * 70  # Scale to 70 points
-    scores["expected_keywords"] = expected_score
+    keyword_weight = 30
+    keyword_score = expected_match_ratio * keyword_weight
+    scores["expected_keywords"] = keyword_score
     
-    if expected_match_ratio >= 0.8:
-        feedback_items.append(f"Excellent keyword match (+{expected_score:.1f}/70)")
-    elif expected_match_ratio >= 0.6:
-        feedback_items.append(f"Good keyword match (+{expected_score:.1f}/70)")
-    elif expected_match_ratio >= 0.4:
-        feedback_items.append(f"Moderate keyword match (+{expected_score:.1f}/70)")
-    elif expected_match_ratio >= 0.2:
-        feedback_items.append(f"Low keyword match (+{expected_score:.1f}/70)")
+    if expected_match_ratio >= 0.5:
+        feedback_items.append(f"Good keyword usage (+{keyword_score:.1f}/{keyword_weight})")
+    elif expected_match_ratio > 0:
+        feedback_items.append(f"Some keywords present (+{keyword_score:.1f}/{keyword_weight})")
     else:
-        feedback_items.append(f"Poor keyword match (+{expected_score:.1f}/70)")
+        feedback_items.append("Missing key terms")
     
     # 2. Completeness (20% weight) - Is the answer sufficiently detailed?
     completeness = analysis.get("completeness", 0)

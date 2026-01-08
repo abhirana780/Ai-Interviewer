@@ -1,0 +1,38 @@
+================================================================================
+CODE QUALITY SCAN REPORT
+================================================================================
+
+Found 8 potential issues in 5 files
+
+
+📄 D:\ai interview\interviewer with tab switch warning\ai interviewer\ai final\backend\app.py
+--------------------------------------------------------------------------------
+  ⚠️  Potentially unused import: database.db_helper.save_transcript
+  ⚠️  Potentially unused import: database.auth_helper.link_session_to_user
+  ⚠️  Line 275: Bare except clause (catches all exceptions)
+
+📄 D:\ai interview\interviewer with tab switch warning\ai interviewer\ai final\backend\database\db_helper.py
+--------------------------------------------------------------------------------
+  ⚠️  Line 59: Too many arguments in save_transcript() (10)
+
+📄 D:\ai interview\interviewer with tab switch warning\ai interviewer\ai final\backend\interviewer.py
+--------------------------------------------------------------------------------
+  ⚠️  Line 9: Very long function __init__() (628 lines)
+
+📄 D:\ai interview\interviewer with tab switch warning\ai interviewer\ai final\backend\model\stt.py
+--------------------------------------------------------------------------------
+  ⚠️  Line 34: Very long function _load_audio() (102 lines)
+
+📄 D:\ai interview\interviewer with tab switch warning\ai interviewer\ai final\backend\utils\scoring.py
+--------------------------------------------------------------------------------
+  ⚠️  Line 15: Bare except clause (catches all exceptions)
+  ⚠️  Line 22: Bare except clause (catches all exceptions)
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+1. Review all bare except clauses and handle specific exceptions
+2. Remove or comment unused imports
+3. Refactor long functions into smaller, focused functions
+4. Avoid mutable default arguments
+5. Consider reducing function parameters using dataclasses or config objects

@@ -1,5 +1,6 @@
 flask
 flask-cors
+flask-jwt-extended
 pyttsx3
 gpt4all
 pdfminer.six
@@ -15,3 +16,5 @@ gunicorn
 av
 moviepy
 imageio-ffmpeg
+bcrypt
+python-dotenv
